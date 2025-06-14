@@ -1,0 +1,85 @@
+/* Style de base commun à tous les boutons */
+.bouton {
+  border: none;
+  border-radius: 8px;
+  padding: 10px 15px;
+  margin: 10px auto;
+  font-family: Arial, sans-serif;
+  font-size: 14px;
+  text-align: center;
+  display: block;
+  transition: 0.3s ease;
+  cursor: pointer;
+}
+
+/* === BOUTONS "PARTIE" === */
+.bouton.partie {
+  background-color: #002060;    /* Bleu foncé */
+  color: white;
+  width: 380px;                 /* Taille par défaut, modifiable */
+  font-weight: bold;
+}
+
+/* === BOUTONS "SOUS-PARTIE" === */
+.bouton.sous-partie {
+  background-color: #003c8f;    /* Bleu intermédiaire */
+  color: white;
+  width: 320px;
+}
+
+/* === BOUTONS "SUJET" === */
+.bouton.sujet {
+  background-color: #cce0ff;    /* Bleu très clair */
+  color: #002060;
+  width: 300px;
+}
+
+/* === BOUTONS "CITATION" === */
+.bouton.citation {
+  background-color: #f5f5f5;    /* Gris très clair */
+  color: #333;
+  text-align: left;
+  font-style: italic;
+  padding: 12px;
+  width: 500px;
+  border-left: 4px solid #ccc;
+}
+/* === BANDEAU LOGO === */
+.bandeau-logos {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100px;         /* réduit la hauteur du bandeau */
+  padding: 10px 0;
+}
+
+.bandeau-logos img {
+  margin: 0 150px;        /* espace horizontal entre logos */
+  max-height: 100px;     /* taille des logos */
+}
+
+/* === ZONE BOUTON === */
+.zone-boutons {
+  width: 2000px;              /* ou une valeur fixe comme 1200px */
+  max-width: 1400px;
+  min-height: 100px;       /* plus de hauteur */
+  margin: 40px auto;       /* centrage horizontal + espace autour */
+  padding: 40px;           /* espace intérieur */
+  background-color: #ffffff;
+  border: 1px solid #ccc;
+  border-radius: 10px;
+  box-shadow: 0 0 12px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  align-items: center;     /* centre les boutons dans la zone */
+}
+
+/* === OPTIONNEL : Bouton actif (sélectionné) === */
+.bouton.active {
+  outline: 2px solid black;
+}
+
+/* Effet au survol */
+.bouton:hover {
+  opacity: 0.9;
+}

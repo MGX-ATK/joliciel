@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <title>Manuel de l'excellence de la Maintenance Opérationnelle</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    body { font-family: sans-serif; margin: 1rem; }
+    h1 { margin-bottom: 1rem; text-align: center; color: #030852; }
+    svg { border: 1px solid #ccc; width: 100%; height: 700px; }
+    rect { stroke: #fff; stroke-width: 1px; }
+    .node text { pointer-events: none; }
+    .selected rect { stroke: #000; stroke-width: 1px; filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.6)); }
+    .tooltip {
+      position: absolute;
+      background-color: #eee;
+      border: 1px solid #aaa;
+      padding: 4px;
+      font-size: 12px;
+      pointer-events: none;
+    }
+    #footer {
+      background: #FFFFF;
+      padding: 1rem;
+      text-align: center;
+      margin-top: 2rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>Manuel de l'excellence de la Maintenance Opérationnelle</h1>
+  <span id="status"></span>
+  <svg id="viz"></svg>
+  <div class="bandeau-logos">
+    <img src="logo1.png" alt="Logo 1">
+    <img src="logo2.png" alt="Logo 2">
+    <img src="logo3.png" alt="Logo 3">
+  </div>
+  <script>
+    const API = "http://127.0.0.1:8000";
+    const RECT_HEIGHT = 40;
+    const CITATION_SPACING_Y = 200;
+
+    const svg = d3.select("#viz");
+    const gAll = svg.append("g");
+    const gParties = gAll.append("g");
+    const gChildren = gAll.append("g");
+    const zoom = d3.zoom().on("zoom", ({ transform }) => gAll.attr("transform", transform));
+    svg.call(zoom);
+
+    function getRectHeight(d) {
+      if (d.level === "citation") return 10; // Valeur temporaire
+      return RECT_HEIGHT;
+    }
+
+    function getRectWidth(d) {
+      switch (d.level) {
+        case "partie": return 400;
+        case "sous_partie": return 400;
+        case "sujet": return 400;
+        case "citation": return 500;
+        default: return 300;
+      }
+    }
+
+    function fetchJSON(path) {
+      const url = path.startsWith("http") ? path : API + path;
+      return fetch(url).then(res => {
+        if (!res.ok) throw new Error(`Erreur HTTP : ${res.status}`);
+        return res.json();
+      });
+    }
+
+    function addChildren(group, parent, data, level) {
+      const spacingY = level === "citation" ? CITATION_SPACING_Y : 60;
+      let offsetX = getRectWidth(parent) + 60;
+      if (level === "citation") offsetX += 80;
+
+      const startY = parent.y - ((data.length - 1) * spacingY) / 2;
+      const children = data.map((d, i) => {
+        const label = d[level] || d;
+        return {
+          id: parent.id + "::" + label,
+          label,
+          size: d.size || 0,
+          level,
+          x: parent.x + offsetX,
+          y: startY + i * spacingY,
+          parentId: parent.id,
+          tooltip: d.fonction || ""
+        };
+      });
+
+      group.selectAll("g.node")
+        .filter(d => d && d.level && d.parentId && d.parentId.startsWith(parent.id))
+        .remove();
+
+      const nodes = group.selectAll(`g.node-${level}`)
+        .data(children, d => d.id)
+        .enter().append("g")
+        .attr("class", `node node-${level}`)
+        .attr("transform", d => `translate(${d.x},${d.y})`)
+        .on("click", (event, d) => {
+          event.stopPropagation();
+          d3.selectAll("g.node").classed("selected", false);
+          d3.select(event.currentTarget).classed("selected", true);
+          handleClick(d);
+        });
+
+      nodes.append("title").text(d => d.tooltip);
+
+      nodes.append("rect")
+        .attr("x", d => -getRectWidth(d) / 2)
+        .attr("y", d => -getRectHeight(d) / 2)
+        .attr("width", d => getRectWidth(d))
+        .attr("height", d => getRectHeight(d))
+        .attr("rx", 6)
+        .attr("fill", d => {
+          if (d.level === "sous_partie") return "#1C459D";
+          if (d.level === "sujet") return "#4987e8";
+          if (d.level === "citation") return "#808080";
+          return "#030852";
+        });
+
+      const foreignObjects = nodes.append("foreignObject")
+        .attr("x", d => -getRectWidth(d) / 2 + 5)
+        .attr("y", d => -getRectHeight(d) / 2 + 5)
+        .attr("width", d => getRectWidth(d) - 10)
+        .attr("height", d => getRectHeight(d) - 10);
+
+      const divs = foreignObjects.append("xhtml:div")
+        .style("color", "white")
+        .style("font-size", "12px")
+        .style("text-align", "center")
+        .style("line-height", "1.3em")
+        .style("word-wrap", "break-word")
+        .style("overflow", "hidden")
+        .style("height", "auto")
+        .style("display", "flex")
+        .style("align-items", "center")
+        .style("justify-content", "center")
+        .style("padding", "10px")
+        .text(d => d.label);
+
+      if (level === "citation") {
+        setTimeout(() => {
+          nodes.each(function(d) {
+            const div = this.querySelector("div");
+            if (!div) return;
+            div.style.height = "auto";
+            const height = div.scrollHeight + 20;
+
+            d3.select(this).select("rect")
+              .attr("y", -height / 2)
+              .attr("height", height);
+
+            d3.select(this).select("foreignObject")
+              .attr("y", (-height / 2) + 5)
+              .attr("height", height - 10);
+          });
+        }, 0);
+      }
+    }
+
+    function clearDescendantsFrom(level) {
+      const order = ["partie", "sous_partie", "sujet", "citation"];
+      const idx = order.indexOf(level);
+      const toRemove = order.slice(idx + 1);
+      gChildren.selectAll("g.node")
+        .filter(d => d && toRemove.includes(d.level))
+        .remove();
+    }
+
+    function handleClick(node) {
+      clearDescendantsFrom(node.level);
+      if (node.level === "partie") {
+        fetchJSON(`/parties/${encodeURIComponent(node.label)}/sous-parties`)
+          .then(data => addChildren(gChildren, node, data, "sous_partie"))
+          .catch(console.error);
+      } else if (node.level === "sous_partie") {
+        const partie = node.parentId.split("::")[0];
+        fetchJSON(`/parties/${encodeURIComponent(partie)}/${encodeURIComponent(node.label)}/sujets`)
+          .then(data => addChildren(gChildren, node, data.sujets, "sujet"))
+          .catch(console.error);
+      } else if (node.level === "sujet") {
+        const [partie, sous_partie] = node.parentId.split("::");
+        fetchJSON(`/parties/${encodeURIComponent(partie)}/${encodeURIComponent(sous_partie)}/${encodeURIComponent(node.label)}/citations`)
+          .then(data => addChildren(gChildren, node, data.map((c, i) => ({ citation: c.citation, fonction: c.fonction })), "citation"))
+          .catch(console.error);
+      }
+    }
+
+    function drawParties(parties) {
+      const spacingY = 60;
+      const centerX = 400;
+
+      const nodes = parties.map((d, i) => ({
+        id: d.partie,
+        label: d.partie,
+        level: "partie",
+        x: centerX,
+        y: i * spacingY + 60
+      }));
+
+      const g = gParties.selectAll("g.node-partie")
+        .data(nodes, d => d.id)
+        .join("g")
+        .attr("class", "node node-partie")
+        .attr("transform", d => `translate(${d.x},${d.y})`)
+        .on("click", (event, d) => {
+          d3.selectAll("g.node").classed("selected", false);
+          d3.select(event.currentTarget).classed("selected", true);
+          clearDescendantsFrom("partie");
+          handleClick(d);
+        });
+
+      g.append("rect")
+        .attr("x", d => -getRectWidth(d) / 2)
+        .attr("y", -RECT_HEIGHT / 2)
+        .attr("width", d => getRectWidth(d))
+        .attr("height", RECT_HEIGHT)
+        .attr("rx", 6)
+        .attr("fill", "#030852");
+
+      g.append("text")
+        .attr("text-anchor", "middle")
+        .attr("dominant-baseline", "middle")
+        .attr("fill", "white")
+        .style("font-size", "13px")
+        .text(d => d.label);
+    }
+
+    d3.csv("corpus.csv").then(data => {
+      const parties = Array.from(
+        new Set(
+          data.map(d => d["Partie"]).filter(p => p && p.trim() !== "")
+        )
+      ).map(p => ({ partie: p }));
+      drawParties(parties);
+    });
+  </script>
+</body>
+</html>
