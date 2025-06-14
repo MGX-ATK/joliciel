@@ -231,7 +231,7 @@
         .text(d => d.label);
     }
 
-    d3.csv("corpus.csv").then(data => {
+    d3.csv("data/corpus.csv").then(data => {
       const parties = Array.from(
         new Set(
           data.map(d => d["Partie"]).filter(p => p && p.trim() !== "")
